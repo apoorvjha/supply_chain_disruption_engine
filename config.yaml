@@ -1,0 +1,100 @@
+# Supply Chain Disruption Engine — Environment Configuration
+#
+# All numeric lists must have the exact length implied by the topology section.
+# Restart the server after changing this file.
+
+# ---------------------------------------------------------------------------
+# Network topology
+# ---------------------------------------------------------------------------
+topology:
+  num_suppliers: 3        # Supplier nodes (IDs 0 … num_suppliers-1)
+  num_dcs: 2              # Distribution Centre nodes (IDs num_suppliers … num_suppliers+num_dcs-1)
+  num_retailers: 4        # Retailer nodes (IDs num_suppliers+num_dcs … total_nodes-1)
+
+  # Which DC (0-based index within the DC list) serves each retailer.
+  # Length must equal num_retailers.
+  retailer_dc_assignment: [0, 0, 1, 1]   # R0 and R1 → DC0;  R2 and R3 → DC1
+
+# ---------------------------------------------------------------------------
+# Initial inventory (on-hand units at episode start)
+# Lengths must equal num_suppliers, num_dcs, and num_retailers respectively.
+# ---------------------------------------------------------------------------
+inventory:
+  supplier_initial: [600.0, 500.0, 450.0]
+  dc_initial:       [220.0, 200.0]
+  retailer_initial: [90.0, 80.0, 95.0, 75.0]
+
+# ---------------------------------------------------------------------------
+# Supplier characteristics
+# Lengths must equal num_suppliers.
+# ---------------------------------------------------------------------------
+suppliers:
+  base_lead_times: [2.0, 3.0, 4.0]        # Replenishment lead time (steps)
+  base_capacity:   [500.0, 420.0, 360.0]   # Max production / shipping units per step
+  backup_capacity_fraction: 0.70           # Fraction of base capacity restored by backup activation
+
+# ---------------------------------------------------------------------------
+# Retailer / demand characteristics
+# Length of base_demand must equal num_retailers.
+# ---------------------------------------------------------------------------
+retailers:
+  base_demand:       [60.0, 55.0, 65.0, 50.0]  # Mean demand per step per retailer
+  demand_noise_std:  6.0                         # Gaussian noise on realised demand (units)
+  safety_stock_days: 1.5                         # DC→Retailer push target (× base_demand)
+
+# ---------------------------------------------------------------------------
+# Cost parameters (all in $)
+# ---------------------------------------------------------------------------
+costs:
+  holding_cost_per_unit:          0.5    # $/unit/step (all nodes)
+  backlog_penalty_per_unit:       8.0    # $/unfulfilled unit/step
+  order_cost_per_unit:            2.0    # $/unit for REORDER
+  expedite_premium:               3.0    # Multiplier on order_cost for EXPEDITE
+  emergency_premium:              7.0    # Multiplier on order_cost for EMERGENCY_PROCUREMENT
+  reroute_cost_flat:              50.0   # Fixed $ per REROUTE action
+  reroute_cost_per_unit:          0.5    # $/unit transferred for REROUTE
+  activate_backup_cost:           250.0  # One-time $ for ACTIVATE_BACKUP_SUPPLIER
+  production_ramp_cost_per_unit:  1.2    # $/unit of capacity increase for ADJUST_PRODUCTION
+  production_ramp_max_fraction:   1.50   # Max supplier capacity as multiple of base
+
+# ---------------------------------------------------------------------------
+# Disruption settings
+# ---------------------------------------------------------------------------
+disruptions:
+  probability_per_step: 0.10   # P(new disruption event spawns each step)
+  max_concurrent:        3      # Maximum simultaneous active disruptions
+  min_duration:          2      # Minimum disruption duration (steps)
+  max_duration:          8      # Maximum disruption duration (steps)
+  min_severity:          0.20   # Minimum disruption severity [0, 1]
+  max_severity:          0.85   # Maximum disruption severity [0, 1]
+
+# ---------------------------------------------------------------------------
+# Episode settings
+# ---------------------------------------------------------------------------
+episode:
+  max_steps: 30                 # Steps per episode before done=True
+
+# ---------------------------------------------------------------------------
+# Reward signal
+#
+# The reward is a weighted sum of three normalised components, all in [0, 1]:
+#
+#   fill_rate_component      = fill_rate              (immediate step fill rate)
+#   service_level_component  = service_level          (cumulative fill rate)
+#   cost_efficiency_component = exp(-step_cost / ref) (exponential cost decay)
+#
+#   reward = w_f * fill_rate + w_s * service_level + w_c * cost_efficiency
+#
+# Weights must sum to 1.0.
+#
+# cost_scale_factor scales the reference cost used in the exponential decay:
+#   reference_cost = sum(initial_inventory) * holding_cost_per_unit * cost_scale_factor
+# A value of 1.0 means the reference equals the expected baseline holding cost
+# at episode start (no backlog, no action).  Increasing it makes the cost term
+# more forgiving; decreasing it penalises cost more aggressively.
+# ---------------------------------------------------------------------------
+reward:
+  fill_rate_weight:       0.40   # Weight on immediate step fill rate      [0, 1]
+  service_level_weight:   0.40   # Weight on cumulative service level      [0, 1]
+  cost_efficiency_weight: 0.20   # Weight on cost efficiency score         [0, 1]
+  cost_scale_factor:      1.0    # Multiplier on the reference cost (> 0)
