@@ -21,57 +21,85 @@ class SupplyChainDisruptionEngineEnv(
     """
     Client for the Supply Chain Disruption Engine Environment.
 
-    This client maintains a persistent WebSocket connection to the environment server,
-    enabling efficient multi-step interactions with lower latency.
-    Each client instance has its own dedicated environment session on the server.
+    Maintains a persistent WebSocket connection to the environment server,
+    enabling low-latency multi-step rollouts with full supply chain state
+    returned after each action.
+
+    Node topology:
+        Suppliers  : IDs 0, 1, 2
+        DCs        : IDs 3, 4
+        Retailers  : IDs 5, 6, 7, 8
 
     Example:
-        >>> # Connect to a running server
-        >>> with SupplyChainDisruptionEngineEnv(base_url="http://localhost:8000") as client:
-        ...     result = client.reset()
-        ...     print(result.observation.echoed_message)
+        >>> with SupplyChainDisruptionEngineEnv(base_url="http://localhost:8000") as env:
+        ...     result = env.reset()
+        ...     obs = result.observation
+        ...     print(obs.inventory_levels)   # [600.0, 500.0, 450.0, 220.0, ...]
         ...
-        ...     result = client.step(SupplyChainDisruptionEngineAction(message="Hello!"))
-        ...     print(result.observation.echoed_message)
+        ...     action = SupplyChainDisruptionEngineAction(
+        ...         action_type="reorder",
+        ...         source_node_id=0,   # Supplier S0
+        ...         target_node_id=3,   # DC0
+        ...         quantity=200.0,
+        ...     )
+        ...     result = env.step(action)
+        ...     print(result.observation.fill_rate)
+        ...     print(result.observation.active_disruptions)
 
     Example with Docker:
-        >>> # Automatically start container and connect
-        >>> client = SupplyChainDisruptionEngineEnv.from_docker_image("supply_chain_disruption_engine-env:latest")
+        >>> client = SupplyChainDisruptionEngineEnv.from_docker_image(
+        ...     "supply_chain_disruption_engine-env:latest"
+        ... )
         >>> try:
         ...     result = client.reset()
-        ...     result = client.step(SupplyChainDisruptionEngineAction(message="Test"))
+        ...     result = client.step(
+        ...         SupplyChainDisruptionEngineAction(action_type="do_nothing")
+        ...     )
         ... finally:
         ...     client.close()
     """
 
     def _step_payload(self, action: SupplyChainDisruptionEngineAction) -> Dict:
-        """
-        Convert SupplyChainDisruptionEngineAction to JSON payload for step message.
+        """Convert a SupplyChainDisruptionEngineAction to a JSON-serialisable dict.
 
         Args:
-            action: SupplyChainDisruptionEngineAction instance
+            action: The action chosen by the agent.
 
         Returns:
-            Dictionary representation suitable for JSON encoding
+            Dict suitable for transmission as the step request body.
         """
         return {
-            "message": action.message,
+            "action_type": action.action_type.value,
+            "source_node_id": action.source_node_id,
+            "target_node_id": action.target_node_id,
+            "quantity": action.quantity,
+            "urgency": action.urgency,
+            "metadata": action.metadata,
         }
 
     def _parse_result(self, payload: Dict) -> StepResult[SupplyChainDisruptionEngineObservation]:
-        """
-        Parse server response into StepResult[SupplyChainDisruptionEngineObservation].
+        """Parse the server's JSON response into a typed StepResult.
 
         Args:
-            payload: JSON response data from server
+            payload: Raw JSON dict returned by the environment server.
 
         Returns:
-            StepResult with SupplyChainDisruptionEngineObservation
+            StepResult wrapping a SupplyChainDisruptionEngineObservation.
         """
         obs_data = payload.get("observation", {})
+
         observation = SupplyChainDisruptionEngineObservation(
-            echoed_message=obs_data.get("echoed_message", ""),
-            message_length=obs_data.get("message_length", 0),
+            inventory_levels=obs_data.get("inventory_levels", []),
+            backlog=obs_data.get("backlog", []),
+            demand_forecast=obs_data.get("demand_forecast", []),
+            lead_times=obs_data.get("lead_times", []),
+            supplier_capacity=obs_data.get("supplier_capacity", []),
+            active_disruptions=obs_data.get("active_disruptions", []),
+            service_level=obs_data.get("service_level", 1.0),
+            fill_rate=obs_data.get("fill_rate", 1.0),
+            total_cost=obs_data.get("total_cost", 0.0),
+            step_cost=obs_data.get("step_cost", 0.0),
+            in_transit_orders=obs_data.get("in_transit_orders", 0),
             done=payload.get("done", False),
             reward=payload.get("reward"),
             metadata=obs_data.get("metadata", {}),
@@ -84,14 +112,13 @@ class SupplyChainDisruptionEngineEnv(
         )
 
     def _parse_state(self, payload: Dict) -> State:
-        """
-        Parse server response into State object.
+        """Parse the server's state response into a State object.
 
         Args:
-            payload: JSON response from state request
+            payload: JSON response data from the /state endpoint.
 
         Returns:
-            State object with episode_id and step_count
+            State object carrying episode_id and step_count.
         """
         return State(
             episode_id=payload.get("episode_id"),
