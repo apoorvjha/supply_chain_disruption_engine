@@ -28,6 +28,9 @@ Usage:
     python -m server.app
 """
 
+import os
+from pathlib import Path
+
 try:
     from openenv.core.env_server.http_server import create_app
 except Exception as e:  # pragma: no cover
@@ -42,6 +45,11 @@ except ModuleNotFoundError:
     from models import SupplyChainDisruptionEngineAction, SupplyChainDisruptionEngineObservation
     from server.supply_chain_disruption_engine_environment import SupplyChainDisruptionEngineEnvironment
 
+# Point the library to the project README so it appears in the web UI.
+os.environ.setdefault(
+    "ENV_README_PATH",
+    str(Path(__file__).parent.parent / "README.md"),
+)
 
 # Create the app with web interface and README integration
 app = create_app(
