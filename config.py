@@ -257,6 +257,75 @@ class SupplyChainConfig(BaseModel):
         dc_ids = self.dc_ids
         return [dc_ids[i] for i in self.topology.retailer_dc_assignment]
 
+    # ------------------------------------------------------------------
+    # Dynamic node-label helpers  (scale with topology)
+    # ------------------------------------------------------------------
+
+    @property
+    def node_name_to_index(self) -> Dict[str, int]:
+        """Mapping from human-readable node name to integer inventory index.
+
+        Generated at runtime from the loaded topology so it is always correct
+        regardless of ``num_suppliers``, ``num_dcs``, and ``num_retailers``.
+
+        Example (default topology 3-2-4)::
+
+            cfg.node_name_to_index["Supplier-1"]  # → 0
+            cfg.node_name_to_index["DC-2"]         # → 4
+            cfg.node_name_to_index["Retailer-3"]   # → 7
+
+        Example (custom topology 4-3-5)::
+
+            cfg.node_name_to_index["Supplier-4"]   # → 3
+            cfg.node_name_to_index["DC-3"]          # → 6
+            cfg.node_name_to_index["Retailer-5"]    # → 11
+        """
+        # Import here to avoid circular import (models → config → models)
+        from .models import build_node_labels  # noqa: PLC0415
+
+        _, n2i, _ = build_node_labels(
+            self.topology.num_suppliers,
+            self.topology.num_dcs,
+            self.topology.num_retailers,
+        )
+        return n2i
+
+    @property
+    def index_to_node_name(self) -> Dict[int, str]:
+        """Inverse of :attr:`node_name_to_index`: integer index → node name."""
+        from .models import build_node_labels  # noqa: PLC0415
+
+        _, _, i2n = build_node_labels(
+            self.topology.num_suppliers,
+            self.topology.num_dcs,
+            self.topology.num_retailers,
+        )
+        return i2n
+
+    @property
+    def all_node_names(self) -> List[str]:
+        """Ordered list of all node names for the loaded topology."""
+        from .models import build_node_labels  # noqa: PLC0415
+
+        names, _, _ = build_node_labels(
+            self.topology.num_suppliers,
+            self.topology.num_dcs,
+            self.topology.num_retailers,
+        )
+        return names
+
+    def resolve_node(self, name: str, fallback_index: int = 0) -> int:
+        """Resolve a node name to its integer index; return ``fallback_index`` if unknown.
+
+        Args:
+            name:           Node name string, e.g. ``"Supplier-2"``.
+            fallback_index: Index to return when the name is not in the topology.
+
+        Returns:
+            Integer index into the inventory array.
+        """
+        return self.node_name_to_index.get(name, fallback_index)
+
     @property
     def initial_inventory(self) -> List[float]:
         """Flat inventory list ordered [suppliers…, DCs…, retailers…]."""
