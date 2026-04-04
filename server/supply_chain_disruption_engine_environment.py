@@ -45,16 +45,20 @@ try:
     from ..models import (
         ActionType,
         DisruptionType,
+        NodeID,
         SupplyChainDisruptionEngineAction,
         SupplyChainDisruptionEngineObservation,
+        build_node_labels,
     )
 except ImportError:
     from config import SupplyChainConfig, load_config  # type: ignore[no-redef]
     from models import (  # type: ignore[no-redef]
         ActionType,
         DisruptionType,
+        NodeID,
         SupplyChainDisruptionEngineAction,
         SupplyChainDisruptionEngineObservation,
+        build_node_labels,
     )
 
 
@@ -100,6 +104,26 @@ class SupplyChainDisruptionEngineEnvironment(Environment):
         self._cfg: SupplyChainConfig = load_config(config_path)
         self._state = State(episode_id=str(uuid4()), step_count=0)
         self._rng = random.Random()
+
+        # Warn loudly when a custom topology is used so operators know the
+        # web-UI dropdowns (which show default 3-2-4 names) may be incomplete.
+        n_s = self._cfg.topology.num_suppliers
+        n_d = self._cfg.topology.num_dcs
+        n_r = self._cfg.topology.num_retailers
+        default_counts = (3, 2, 4)
+        if (n_s, n_d, n_r) != default_counts:
+            import warnings
+            warnings.warn(
+                f"Non-default topology detected: {n_s} suppliers, {n_d} DCs, "
+                f"{n_r} retailers.  "
+                f"The web-UI action dropdowns show names for the default topology "
+                f"(3 suppliers, 2 DCs, 4 retailers). "
+                f"The environment correctly resolves any 'Supplier-N', 'DC-N', "
+                f"'Retailer-N' name at runtime using the loaded config. "
+                f"Valid node names are: {self._cfg.all_node_names}",
+                stacklevel=2,
+            )
+
         self._init_episode_state()
 
     # -----------------------------------------------------------------------
@@ -252,8 +276,10 @@ class SupplyChainDisruptionEngineEnvironment(Environment):
     def _apply_action(self, action: SupplyChainDisruptionEngineAction) -> float:
         """Execute the agent's action and return the cost incurred (dollars)."""
         atype = action.action_type
-        src = action.source_node_id
-        tgt = action.target_node_id
+        # Resolve node names → integer indices using the *loaded config* so
+        # custom topologies (e.g. 4 suppliers, 3 DCs) work without code changes.
+        src = self._cfg.resolve_node(action.source_node, fallback_index=0)
+        tgt = self._cfg.resolve_node(action.target_node, fallback_index=self._cfg.dc_ids[0])
         qty = action.quantity
         urgency = action.urgency
 
@@ -386,7 +412,8 @@ class SupplyChainDisruptionEngineEnvironment(Environment):
         duration = self._rng.randint(dis_cfg.min_duration, dis_cfg.max_duration)
         return {
             "type": dtype.value,
-            "affected_node": affected_node,
+            "affected_node": affected_node,                          # int index internally
+            "affected_node_name": INDEX_TO_NODE_ID.get(affected_node, str(affected_node)),
             "severity": severity,
             "remaining_steps": duration,
             "total_duration": duration,
@@ -536,10 +563,11 @@ class SupplyChainDisruptionEngineEnvironment(Environment):
             for d in self._base_demand
         ]
 
+        i2n = self._cfg.index_to_node_name
         disruptions_snapshot = [
             {
                 "type": d["type"],
-                "affected_node": d["affected_node"],
+                "affected_node": i2n.get(d["affected_node"], str(d["affected_node"])),
                 "severity": d["severity"],
                 "remaining_steps": d["remaining_steps"],
                 "total_duration": d["total_duration"],
