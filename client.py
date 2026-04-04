@@ -70,8 +70,8 @@ class SupplyChainDisruptionEngineEnv(
         """
         return {
             "action_type": action.action_type.value,
-            "source_node_id": action.source_node_id,
-            "target_node_id": action.target_node_id,
+            "source_node": action.source_node,
+            "target_node": action.target_node,
             "quantity": action.quantity,
             "urgency": action.urgency,
             "metadata": action.metadata,
