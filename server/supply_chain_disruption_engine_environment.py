@@ -45,6 +45,7 @@ try:
     from ..models import (
         ActionType,
         DisruptionType,
+        INDEX_TO_NODE_ID,
         NodeID,
         SupplyChainDisruptionEngineAction,
         SupplyChainDisruptionEngineObservation,
@@ -55,6 +56,7 @@ except ImportError:
     from models import (  # type: ignore[no-redef]
         ActionType,
         DisruptionType,
+        INDEX_TO_NODE_ID,
         NodeID,
         SupplyChainDisruptionEngineAction,
         SupplyChainDisruptionEngineObservation,
