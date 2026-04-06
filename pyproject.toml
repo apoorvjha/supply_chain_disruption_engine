@@ -14,6 +14,7 @@ version = "0.1.0"
 description = "Supply Chain Disruption Engine environment for OpenEnv"
 requires-python = ">=3.10"
 dependencies = [
+    "openai>=2.30.0",
     # Core OpenEnv runtime (provides FastAPI server + HTTP client types)
     # install from github
     # "openenv-core[core] @ git+https://github.com/meta-pytorch/OpenEnv.git",
