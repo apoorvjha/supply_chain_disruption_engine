@@ -8,12 +8,12 @@
 # ---------------------------------------------------------------------------
 topology:
   num_suppliers: 3        # Supplier nodes (IDs 0 … num_suppliers-1)
-  num_dcs: 2              # Distribution Centre nodes (IDs num_suppliers … num_suppliers+num_dcs-1)
+  num_dcs: 3              # Distribution Centre nodes (IDs num_suppliers … num_suppliers+num_dcs-1)
   num_retailers: 4        # Retailer nodes (IDs num_suppliers+num_dcs … total_nodes-1)
 
   # Which DC (0-based index within the DC list) serves each retailer.
   # Length must equal num_retailers.
-  retailer_dc_assignment: [0, 0, 1, 1]   # R0 and R1 → DC0;  R2 and R3 → DC1
+  retailer_dc_assignment: [0, 0, 1, 2]   # R0 and R1 → DC0;  R2 and R3 → DC1
 
 # ---------------------------------------------------------------------------
 # Initial inventory (on-hand units at episode start)
@@ -21,7 +21,7 @@ topology:
 # ---------------------------------------------------------------------------
 inventory:
   supplier_initial: [600.0, 500.0, 450.0]
-  dc_initial:       [220.0, 200.0]
+  dc_initial:       [220.0, 200.0, 180.0]
   retailer_initial: [90.0, 80.0, 95.0, 75.0]
 
 # ---------------------------------------------------------------------------

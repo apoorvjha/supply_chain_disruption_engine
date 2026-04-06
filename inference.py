@@ -65,7 +65,9 @@ from supply_chain_disruption_engine.models import (
     SupplyChainDisruptionEngineAction,
     SupplyChainDisruptionEngineObservation,
 )
+from dotenv import load_dotenv
 
+load_dotenv()  # Load environment variables from .env file if present
 # ── Environment / model configuration ────────────────────────────────────────
 
 IMAGE_NAME = os.getenv("IMAGE_NAME")  # Docker image for the environment
@@ -491,16 +493,17 @@ def get_llm_action(
         if action is not None:
             return action
 
-        print(f"[DEBUG] LLM output not parseable (step {step}): {raw!r}", flush=True)
+        # print(f"[DEBUG] LLM output not parseable (step {step}): {raw!r}", flush=True)
 
     except Exception as exc:
-        print(f"[DEBUG] LLM request failed (step {step}): {exc}", flush=True)
+        # print(f"[DEBUG] LLM request failed (step {step}): {exc}", flush=True)
+        pass
 
     # Fallback: heuristic policy
     fallback = heuristic_action(obs)
-    print(
-        f"[DEBUG] Using heuristic fallback: {fallback.action_type.value}", flush=True
-    )
+    # print(
+    #     f"[DEBUG] Using heuristic fallback: {fallback.action_type.value}", flush=True
+    # )
     return fallback
 
 
@@ -521,8 +524,7 @@ def _action_to_str(action: SupplyChainDisruptionEngineAction) -> str:
 async def main() -> None:
     """Run one full supply chain episode and emit the required STDOUT lines."""
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    env = SupplyChainDisruptionEngineEnv.from_docker_image(IMAGE_NAME)
-
+    env = await SupplyChainDisruptionEngineEnv.from_docker_image(IMAGE_NAME)
     rewards: List[float] = []
     steps_taken = 0
     score = 0.0
@@ -532,7 +534,7 @@ async def main() -> None:
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        result = env.reset()
+        result = await env.reset()
         obs: SupplyChainDisruptionEngineObservation = result.observation
 
         for step in range(1, MAX_STEPS + 1):
@@ -540,7 +542,8 @@ async def main() -> None:
                 break
 
             action = get_llm_action(client, obs, step, conversation_history)
-            result = env.step(action)
+            # print("DEBUG: Action chosen:", _action_to_str(action))
+            result = await env.step(action)
             obs = result.observation
 
             reward = result.reward or 0.0
@@ -568,7 +571,7 @@ async def main() -> None:
 
     finally:
         try:
-            env.close()
+            await env.close()
         except Exception as exc:
             print(f"[DEBUG] env.close() error: {exc}", flush=True)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
