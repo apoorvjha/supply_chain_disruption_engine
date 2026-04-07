@@ -7,10 +7,11 @@
 """Supply Chain Disruption Engine Environment."""
 
 from .client import SupplyChainDisruptionEngineEnv
-from .models import SupplyChainDisruptionEngineAction, SupplyChainDisruptionEngineObservation
+from .models import SupplyChainDisruptionEngineAction, SupplyChainDisruptionEngineObservation, ActionType
 
 __all__ = [
     "SupplyChainDisruptionEngineAction",
     "SupplyChainDisruptionEngineObservation",
     "SupplyChainDisruptionEngineEnv",
+    "ActionType"
 ]
