@@ -519,7 +519,7 @@ def _action_to_str(action: SupplyChainDisruptionEngineAction) -> str:
 # ── Main episode loop ─────────────────────────────────────────────────────────
 
 
-def main() -> None:
+async def main() -> None:
     """Run one full supply chain episode and emit the required STDOUT lines."""
     rewards: List[float] = []
     steps_taken = 0
@@ -586,4 +586,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
