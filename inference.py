@@ -586,4 +586,22 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        # Already inside a running event loop (e.g. Jupyter / IPython).
+        # nest_asyncio patches asyncio to allow nested run_until_complete calls.
+        try:
+            import nest_asyncio
+            nest_asyncio.apply()
+            loop.run_until_complete(main())
+        except ImportError:
+            raise RuntimeError(
+                "A running asyncio event loop was detected (e.g. Jupyter). "
+                "Install nest_asyncio to fix this: pip install nest_asyncio"
+            )
+    else:
+        asyncio.run(main())
