@@ -70,7 +70,7 @@ from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file if present
 # ── Environment / model configuration ────────────────────────────────────────
 
-IMAGE_NAME = os.getenv("IMAGE_NAME")  # Docker image for the environment
+IMAGE_NAME = os.getenv("IMAGE_NAME") or os.getenv("LOCAL_IMAGE_NAME")  # Docker image for the environment
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
@@ -523,22 +523,25 @@ def _action_to_str(action: SupplyChainDisruptionEngineAction) -> str:
 
 async def main() -> None:
     """Run one full supply chain episode and emit the required STDOUT lines."""
-    try:
-        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    except Exception as exc:
-        print(f"[DEBUG] Failed to create OpenAI client: {exc}", flush=True)
-        return
-    try:
-        env = await SupplyChainDisruptionEngineEnv.from_docker_image(IMAGE_NAME)
-    except Exception as exc:
-        print(f"[DEBUG] Failed to create environment: {exc}", flush=True)
     rewards: List[float] = []
     steps_taken = 0
     score = 0.0
     success = False
     conversation_history: List[dict] = []
-
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
+
+    try:
+        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    except Exception as exc:
+        print(f"[DEBUG] Failed to create OpenAI client: {exc}", flush=True)
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+        return
+    try:
+        env = await SupplyChainDisruptionEngineEnv.from_docker_image(IMAGE_NAME)
+    except Exception as exc:
+        print(f"[DEBUG] Failed to create environment: {exc}", flush=True)
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+        return
 
     try:
         result = await env.reset()
