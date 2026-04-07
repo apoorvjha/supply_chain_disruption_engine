@@ -262,33 +262,33 @@ class SupplyChainDisruptionEngineAction(Action):
     )
     quantity: float = Field(
         default=0.0,
-        ge=0.0,
-        le=2000.0,
+        # ge=0.0,
+        # le=2000.0,
         description="Units to order, transfer, or procure.",
     )
     urgency: float = Field(
         default=0.5,
-        ge=0.0,
-        le=1.0,
+        # ge=0.0,
+        # le=1.0,
         description=(
             "Urgency level [0, 1] used by ADJUST_PRODUCTION to determine the "
             "capacity ramp-up multiplier."
         ),
     )
 
-    @field_validator("source_node", "target_node", mode="before")
-    @classmethod
-    def _validate_node_name(cls, v: Any) -> str:
-        """Coerce NodeID enum members and bare strings to the canonical string value."""
-        if isinstance(v, Enum):
-            return v.value
-        s = str(v)
-        if not _NODE_NAME_RE.match(s):
-            raise ValueError(
-                f"Invalid node name {s!r}. "
-                "Expected 'Supplier-N', 'DC-N', or 'Retailer-N' (N ≥ 1)."
-            )
-        return s
+    # @field_validator("source_node", "target_node", mode="before")
+    # @classmethod
+    # def _validate_node_name(cls, v: Any) -> str:
+    #     """Coerce NodeID enum members and bare strings to the canonical string value."""
+    #     if isinstance(v, Enum):
+    #         return v.value
+    #     s = str(v)
+    #     if not _NODE_NAME_RE.match(s):
+    #         raise ValueError(
+    #             f"Invalid node name {s!r}. "
+    #             "Expected 'Supplier-N', 'DC-N', or 'Retailer-N' (N ≥ 1)."
+    #         )
+    #     return s
 
 
 # ---------------------------------------------------------------------------
@@ -360,8 +360,8 @@ class SupplyChainDisruptionEngineObservation(Observation):
     )
     service_level: float = Field(
         default=1.0,
-        ge=0.0,
-        le=1.0,
+        # ge=0.0,
+        # le=1.0,
         description=(
             "Cumulative service level — fraction of total demand fulfilled "
             "since episode start [0, 1]."
@@ -369,8 +369,8 @@ class SupplyChainDisruptionEngineObservation(Observation):
     )
     fill_rate: float = Field(
         default=1.0,
-        ge=0.0,
-        le=1.0,
+        # ge=0.0,
+        # le=1.0,
         description="Fill rate for the most recent step [0, 1].",
     )
     total_cost: float = Field(
