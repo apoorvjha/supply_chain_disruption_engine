@@ -66,7 +66,7 @@ load_dotenv()  # Load environment variables from .env file if present
 # ── Environment / model configuration ────────────────────────────────────────
 
 IMAGE_NAME = os.getenv("IMAGE_NAME") or os.getenv("LOCAL_IMAGE_NAME")  # Docker image for the environment
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")  # API
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 TASK_NAME = os.getenv("SUPPLY_CHAIN_TASK", "supply_chain_disruption")
@@ -581,4 +581,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main(), debug=True)
+    asyncio.run(main())
