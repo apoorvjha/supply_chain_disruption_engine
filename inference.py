@@ -7,14 +7,18 @@ MANDATORY
     MODEL_NAME          The model identifier to use for inference.
     HF_TOKEN            Your Hugging Face / API key.
     IMAGE_NAME          The Docker image name for the environment (from_docker_image).
+
 - Defaults:
     API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
     MODEL_NAME   = os.getenv("MODEL_NAME",   "Qwen/Qwen2.5-72B-Instruct")
+
 STDOUT FORMAT
 - The script must emit exactly three line types to stdout, in this order:
+
     [START] task=<task_name> env=<benchmark> model=<model_name>
     [STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
     [END]   success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...,rn>
+
   Rules:
     - One [START] line at episode begin.
     - One [STEP] line per step, immediately after env.step() returns.
@@ -24,15 +28,18 @@ STDOUT FORMAT
     - error is the raw last_action_error string, or null if none.
     - All fields on a single line with no newlines within a line.
     - Each task should return score in [0, 1].
+
   Example:
     [START] task=supply_chain_disruption env=supply_chain_disruption_engine model=Qwen2.5-72B
     [STEP] step=1 action=reorder(src=Supplier-1,tgt=DC-1,qty=200,urg=0.50) reward=0.82 done=false error=null
     [STEP] step=2 action=do_nothing(src=Supplier-1,tgt=DC-1,qty=0,urg=0.00) reward=0.85 done=false error=null
     [END] success=true steps=30 score=0.840 rewards=0.82,0.85,...
+
 AGENT STRATEGY
   The LLM agent receives the full supply chain state each step and outputs a
   JSON action.  If the LLM response cannot be parsed, a proven heuristic policy
   is used as fallback.
+
   Priority order (highest → lowest):
     1. EMERGENCY_PROCUREMENT — DC stock < 0.5-day demand AND active retailer backlog
     2. EXPEDITE              — DC stock < full lead-time coverage (avoidable stockout)
@@ -101,7 +108,9 @@ SYSTEM_PROMPT = textwrap.dedent(
     """
     You are an expert supply chain manager optimising a multi-echelon distribution
     network over a 30-step episode.  Your goal is to maximise the reward:
+
         reward = 0.40 × fill_rate + 0.40 × service_level + 0.20 × cost_efficiency
+
     NETWORK TOPOLOGY (Suppliers → DCs → Retailers):
       Supplier-1  lead=2 steps  cap≈500/step  →  DC-1 (primary)
       Supplier-2  lead=3 steps  cap≈420/step  →  DC-2 (primary)
@@ -109,6 +118,7 @@ SYSTEM_PROMPT = textwrap.dedent(
       DC-1 serves Retailer-1 (≈60/step) and Retailer-2 (≈55/step) → 115/step total
       DC-2 serves Retailer-3 (≈65/step)
       DC-3 serves Retailer-4 (≈50/step)
+
     COST STRUCTURE (backlog is very expensive — avoid stockouts!):
       Holding cost   : $0.50/unit/step (all nodes)
       Backlog penalty: $8.00/unit/step  ← 16× more costly than holding
@@ -117,6 +127,7 @@ SYSTEM_PROMPT = textwrap.dedent(
       Emergency      : $14.00/unit (1-step delivery — last resort)
       Reroute        : $50 flat + $0.50/unit (instant DC-to-DC or DC-to-retailer)
       Activate backup: $250 one-time (restores 70 % of supplier capacity)
+
     DECISION PRIORITY (assess in this order each step):
       1. emergency_procurement — DC stock < 0.5 × day demand AND active backlog
       2. expedite              — DC stock < (lead_time × demand_rate) [stockout soon]
@@ -125,6 +136,7 @@ SYSTEM_PROMPT = textwrap.dedent(
       5. adjust_production     — supplier disrupted, DC approaching reorder point
       6. reroute               — a DC has >2× avg days-of-supply vs another <0.5×
       7. do_nothing            — supply comfortable at all nodes
+
     AVAILABLE ACTIONS:
       do_nothing            — no intervention this step
       reorder               — source=Supplier-X, target=DC-Y, quantity=Q
@@ -133,6 +145,7 @@ SYSTEM_PROMPT = textwrap.dedent(
       activate_backup_supplier — source=Supplier-X  (target ignored, quantity ignored)
       adjust_production     — source=Supplier-X, urgency∈[0,1]
       emergency_procurement — target=DC-Y, quantity=Q  (source ignored)
+
     OUTPUT FORMAT: Reply with ONLY a single JSON object — no markdown fences, no
     explanation.  All five fields are required.  Examples:
       {"action_type":"reorder","source_node":"Supplier-1","target_node":"DC-2","quantity":180.0,"urgency":0.5}
@@ -244,6 +257,7 @@ def _pick_best_supplier(
     disruptions: list,
 ) -> int:
     """Return the best available supplier index for a given DC.
+
     Prefers the primary (lowest lead-time) supplier; falls back to any
     supplier with available capacity if the primary is disrupted.
     """
@@ -263,6 +277,7 @@ def heuristic_action(
     obs: SupplyChainDisruptionEngineObservation,
 ) -> SupplyChainDisruptionEngineAction:
     """Rule-based policy derived from supply chain domain knowledge.
+
     Evaluates seven intervention types in descending priority and returns
     the first action whose trigger condition is met.
     """
@@ -392,6 +407,7 @@ _VALID_ACTION_TYPES = {a.value for a in ActionType}
 
 def _parse_llm_action(raw: str) -> Optional[SupplyChainDisruptionEngineAction]:
     """Parse the LLM's text response into a SupplyChainDisruptionEngineAction.
+
     Accepts clean JSON or JSON embedded in markdown code fences.
     Returns None if the response cannot be parsed or contains an invalid action.
     """
@@ -439,14 +455,17 @@ def get_llm_action(
     conversation_history: List[dict],
 ) -> SupplyChainDisruptionEngineAction:
     """Query the LLM for the next supply chain action.
+
     Appends the formatted observation to the conversation history, calls the
     LLM, and attempts to parse the JSON response.  Falls back to the heuristic
     policy if the LLM call fails or returns an unparseable response.
+
     Args:
         client: Authenticated OpenAI client.
         obs: Current environment observation.
         step: Current step number (1-indexed).
         conversation_history: Mutable list of prior user/assistant messages.
+
     Returns:
         A valid SupplyChainDisruptionEngineAction.
     """
@@ -502,11 +521,17 @@ def _action_to_str(action: SupplyChainDisruptionEngineAction) -> str:
 # ── Main episode loop ─────────────────────────────────────────────────────────
 
 
-def main() -> None:
+async def main() -> None:
     """Run one full supply chain episode and emit the required STDOUT lines."""
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    env = SupplyChainDisruptionEngineEnv.from_docker_image(IMAGE_NAME)
-    env = env.sync()
+    try:
+        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    except Exception as exc:
+        print(f"[DEBUG] Failed to create OpenAI client: {exc}", flush=True)
+        return
+    try:
+        env = await SupplyChainDisruptionEngineEnv.from_docker_image(IMAGE_NAME)
+    except Exception as exc:
+        print(f"[DEBUG] Failed to create environment: {exc}", flush=True)
     rewards: List[float] = []
     steps_taken = 0
     score = 0.0
@@ -516,7 +541,7 @@ def main() -> None:
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        result = env.reset()
+        result = await env.reset()
         obs: SupplyChainDisruptionEngineObservation = result.observation
 
         for step in range(1, MAX_STEPS + 1):
@@ -525,7 +550,7 @@ def main() -> None:
 
             action = get_llm_action(client, obs, step, conversation_history)
             # print("DEBUG: Action chosen:", _action_to_str(action))
-            result = env.step(action)
+            result = await env.step(action)
             obs = result.observation
 
             reward = result.reward or 0.0
@@ -553,12 +578,11 @@ def main() -> None:
 
     finally:
         try:
-            env.close()
+            await env.close()
         except Exception as exc:
-            # print(f"[DEBUG] env.close() error: {exc}", flush=True)
-            pass
+            print(f"[DEBUG] env.close() error: {exc}", flush=True)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
