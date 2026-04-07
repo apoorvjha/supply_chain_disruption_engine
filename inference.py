@@ -68,6 +68,7 @@ load_dotenv()  # Load environment variables from .env file if present
 IMAGE_NAME = os.getenv("IMAGE_NAME") or os.getenv("LOCAL_IMAGE_NAME")  # Docker image for the environment
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")  # API
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")  # fallback env image URL
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 TASK_NAME = os.getenv("SUPPLY_CHAIN_TASK", "supply_chain_disruption")
 BENCHMARK = os.getenv("SUPPLY_CHAIN_BENCHMARK", "supply_chain_disruption_engine")
@@ -514,7 +515,7 @@ def _action_to_str(action: SupplyChainDisruptionEngineAction) -> str:
 # ── Main episode loop ─────────────────────────────────────────────────────────
 
 
-async def main() -> None:
+def main() -> None:
     """Run one full supply chain episode and emit the required STDOUT lines."""
     rewards: List[float] = []
     steps_taken = 0
@@ -530,14 +531,14 @@ async def main() -> None:
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
         return
     try:
-        env = await SupplyChainDisruptionEngineEnv.from_docker_image(IMAGE_NAME)
+        env = SupplyChainDisruptionEngineEnv(base_url=ENV_URL).sync()
     except Exception as exc:
         print(f"[DEBUG] Failed to create environment: {exc}", flush=True)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
         return
 
     try:
-        result = await env.reset()
+        result = env.reset()
         obs: SupplyChainDisruptionEngineObservation = result.observation
 
         for step in range(1, MAX_STEPS + 1):
@@ -546,7 +547,7 @@ async def main() -> None:
 
             action = get_llm_action(client, obs, step, conversation_history)
             # print("DEBUG: Action chosen:", _action_to_str(action))
-            result = await env.step(action)
+            result = env.step(action)
             obs = result.observation
 
             reward = result.reward or 0.0
@@ -574,11 +575,11 @@ async def main() -> None:
 
     finally:
         try:
-            await env.close()
+            env.close()
         except Exception as exc:
             print(f"[DEBUG] env.close() error: {exc}", flush=True)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
