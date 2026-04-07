@@ -59,12 +59,7 @@ import asyncio
 
 from openai import OpenAI
 
-from supply_chain_disruption_engine.client import SupplyChainDisruptionEngineEnv
-from supply_chain_disruption_engine.models import (
-    ActionType,
-    SupplyChainDisruptionEngineAction,
-    SupplyChainDisruptionEngineObservation,
-)
+from supply_chain_disruption_engine import SupplyChainDisruptionEngineEnv, ActionType, SupplyChainDisruptionEngineAction, SupplyChainDisruptionEngineObservation
 from dotenv import load_dotenv
 
 load_dotenv()  # Load environment variables from .env file if present
