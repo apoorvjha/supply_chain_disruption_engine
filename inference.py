@@ -494,7 +494,17 @@ def get_llm_action(
         pass
 
     # Fallback: heuristic policy
-    fallback = heuristic_action(obs)
+    try:
+        fallback = heuristic_action(obs)
+    except Exception as exc:
+        # print(f"[DEBUG] Heuristic policy failed (step {step}): {exc}", flush=True)
+        fallback = SupplyChainDisruptionEngineAction(
+            action_type=ActionType.DO_NOTHING,
+            source_node="Supplier-1",
+            target_node="DC-1",
+            quantity=0.0,
+            urgency=0.0,
+        )
     # print(
     #     f"[DEBUG] Using heuristic fallback: {fallback.action_type.value}", flush=True
     # )
